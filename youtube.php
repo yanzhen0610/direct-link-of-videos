@@ -1,7 +1,4 @@
 <?php
-// Turn off all error reporting
-error_reporting(0);
-
 header( 'Access-Control-Allow-Origin: *' );
 header( 'Content-Type: application/json' );
 
@@ -106,10 +103,12 @@ else
 // response the result as JSON
 echo json_encode($result, JSON_PRETTY_PRINT);
 
+
 ///////////////
 // functions //
 ///////////////
 
+// parse to array
 function parse_yt_fmts($str_arr)
 {
   $fmts = array();
@@ -136,12 +135,14 @@ function parse_yt_fmts($str_arr)
       // add the encoded title to the url
       global $title_encoded;
       $x['dl_url'] = $x['url'] . "&title=$title_encoded";
+      $x['content-length'] = get_url_content_length($x['url']);
     }
     array_push($fmts, $x);
   }
   return $fmts;
 }
 
+// swap function
 function str_swap(&$str, $i, $j)
 {
   $tmp = $str[$i];
@@ -149,6 +150,7 @@ function str_swap(&$str, $i, $j)
   $str[$j] = $tmp;
 }
 
+// get the real signature
 function sig($sig)
 {
   $exchanges = array(
@@ -166,8 +168,11 @@ function sig($sig)
   return $sig;
 }
 
-function get_content_length($url)
+// get the content length of an URL from response header
+function get_url_content_length($url)
 {
+  $len = false;
+
   if (preg_match("/^((https?)\:\/\/)?(([\w-]*\.)+([\w-]+\.?))(\/.*)?$/", $url, $matches))
   {
     $scheme = $matches[2];
@@ -179,11 +184,7 @@ function get_content_length($url)
     $address = gethostbyname($hostname);
     if ($address === $hostname) return -1;
 
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    if ($socket === false) return -1;
-
-    if (!socket_connect($socket, $address, $port)) return -1;
-
+    // request header
     $request_str = "GET $query HTTP/1.1\r\n";
     $request_str .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
     $request_str .= "Accept-Encoding: gzip, deflate, br\r\n";
@@ -196,6 +197,34 @@ function get_content_length($url)
     $request_str .= "Upgrade-Insecure-Requests: 1\r\n";
     $request_str .= "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0\r\n";
     $request_str .= "\r\n";
+
+    $response_header = "";
+
+    // 0.1 sec timeout
+    if ($socket = stream_socket_client('tlsv1.2://'.$hostname.':'.$port, $errno, $errstr, 0.1))
+    {
+      fwrite($socket, $request_str);
+      $data = "";
+      while (!feof($socket))
+      {
+        $data .= fread($socket, 1024);
+        if (preg_match("/(\r\n\r\n)/", $data, $matches, PREG_OFFSET_CAPTURE))
+        {
+          $response_header = substr($data, 0, $matches[1][1] + 1);
+          break;
+        }
+      }
+      fclose($socket);
+    }
+
+    if (preg_match("/[cC]ontent-[lL]ength\:\s*(\d+)/", $response_header, $matches))
+    {
+      if (is_numeric($matches[1]))
+      {
+        $len = (int) $matches[1];
+      }
+    }
   }
-  return -1;
+
+  return $len;
 }
