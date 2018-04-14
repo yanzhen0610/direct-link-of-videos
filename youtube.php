@@ -36,7 +36,7 @@ else if ( isset($_REQUEST['v']) && $_REQUEST['v'] != "" )
 if ($id != "")
 {
   // load info from 'https://www.youtube.com/get_video_info'
-  $info = file_get_contents("http://www.youtube.com/get_video_info?eurl=http%3A%2F%2Fexample.com%2F&sts=17632&video_id=$id");
+  $info = file_get_contents("http://www.youtube.com/get_video_info?eurl=http%3A%2F%2Fexample.com%2F&video_id=$id&gl=US&hl=en");
 
   // if load info successfully
   if ($info)
@@ -57,7 +57,7 @@ if ($id != "")
     if ($video_info['status'] == "fail")
     {
       $error = true;
-      $error_msg = "Video ID not found";
+      $error_msg = $video_info['reason'];
     }
   }
   // if failed to load info from YouTube
