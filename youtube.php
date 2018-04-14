@@ -1,4 +1,7 @@
 <?php
+// Turn off all error reporting
+error_reporting(0);
+
 header( 'Access-Control-Allow-Origin: *' );
 header( 'Content-Type: application/json' );
 
@@ -16,12 +19,12 @@ if ( isset($_REQUEST['url']) && $_REQUEST['url'] != "" )
   $url = $_REQUEST['url'];
 
   // desktop site
-  if ( preg_match("/(^https?\:\/\/)?(\w+\.)?youtube\.com\/watch\?(.*&)?v=([A-Za-z0-9_-]+)/", $url, $r) )
+  if ( preg_match("/(https?\:\/\/)?(\w+\.)?youtube\.com\/watch\?(.*&)?v=([A-Za-z0-9_-]+)/", $url, $r) )
   {
     $id = $r[4];
   }
   // mobile
-  else if ( preg_match("/(^https?\:\/\/)?youtu\.be\/([A-Za-z0-9_-]+)/", $url, $r) )
+  else if ( preg_match("/(https?\:\/\/)?youtu\.be\/([A-Za-z0-9_-]+)/", $url, $r) )
   {
     $id = $r[2];
   }
@@ -161,4 +164,38 @@ function sig($sig)
   $sig = substr($sig, $slice[0], strlen($sig) - $slice[0] - $slice[1]);
   $sig = strrev($sig);
   return $sig;
+}
+
+function get_content_length($url)
+{
+  if (preg_match("/^((https?)\:\/\/)?(([\w-]*\.)+([\w-]+\.?))(\/.*)?$/", $url, $matches))
+  {
+    $scheme = $matches[2];
+    $hostname = $matches[3];
+    $query = $matches[6];
+
+    $port = getservbyname($scheme, 'tcp');
+    if ($port === false) return -1;
+    $address = gethostbyname($hostname);
+    if ($address === $hostname) return -1;
+
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    if ($socket === false) return -1;
+
+    if (!socket_connect($socket, $address, $port)) return -1;
+
+    $request_str = "GET $query HTTP/1.1\r\n";
+    $request_str .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
+    $request_str .= "Accept-Encoding: gzip, deflate, br\r\n";
+    $request_str .= "Accept-Language: en-US,en;q=0.5\r\n";
+    $request_str .= "Cache-Control: no-cache\r\n";
+    $request_str .= "Connection: keep-alive\r\n";
+    $request_str .= "DNT: 1\r\n";
+    $request_str .= "Host: $hostname\r\n";
+    $request_str .= "Pragma: no-cache\r\n";
+    $request_str .= "Upgrade-Insecure-Requests: 1\r\n";
+    $request_str .= "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0\r\n";
+    $request_str .= "\r\n";
+  }
+  return -1;
 }
