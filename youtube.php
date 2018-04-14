@@ -36,7 +36,15 @@ else if ( isset($_REQUEST['v']) && $_REQUEST['v'] != "" )
 if ($id != "")
 {
   // load info from 'https://www.youtube.com/get_video_info'
-  $info = file_get_contents("http://www.youtube.com/get_video_info?eurl=http%3A%2F%2Fexample.com%2F&video_id=$id&gl=US&hl=en");
+  $info = false;
+
+  // re-try on failure
+  for ($i = 0; $i < 2; ++$i)
+  {
+    $info = file_get_contents("http://www.youtube.com/get_video_info?eurl=http%3A%2F%2Fexample.com%2F&video_id=$id&gl=US&hl=en");
+    if ($info) break;
+    sleep(1);
+  }
 
   // if load info successfully
   if ($info)
@@ -207,7 +215,7 @@ function get_url_content_length($url)
       $data = "";
       while (!feof($socket))
       {
-        $data .= fread($socket, 1024);
+        $data .= fread($socket, 640);
         if (preg_match("/(\r\n\r\n)/", $data, $matches, PREG_OFFSET_CAPTURE))
         {
           $response_header = substr($data, 0, $matches[1][1] + 1);
