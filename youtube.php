@@ -32,7 +32,7 @@ else if (isset($_REQUEST['v']) && $_REQUEST['v'] != '')
 }
 
 // get info
-if ($error === false && $id != "")
+if (!$error && $id != "")
 {
   // load info from 'https://www.youtube.com/get_video_info'
   $info = false;
@@ -79,7 +79,7 @@ else
 }
 
 // if there are no errors
-if ($error === false)
+if (!$error)
 {
   // get the title fo the video
   $title = $video_info['title'];
@@ -105,7 +105,7 @@ else
 }
 
 // response the result as JSON
-echo json_encode($result, JSON_PRETTY_PRINT);
+echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 
 ///////////////
