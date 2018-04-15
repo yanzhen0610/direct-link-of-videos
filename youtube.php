@@ -208,14 +208,17 @@ function get_url_content_length($url)
 
     $response_header = "";
 
+    $protocol = 'tcp';
+    if ($scheme == 'https') $protocol = 'tlsv1.2';
+
     // 0.1 sec timeout
-    if ($socket = stream_socket_client('tlsv1.2://'.$hostname.':'.$port, $errno, $errstr, 0.1))
+    if ($socket = stream_socket_client("$protocol://$hostname:$port", $errno, $errstr, 0.1))
     {
       fwrite($socket, $request_str);
       $data = "";
       while (!feof($socket))
       {
-        $data .= fread($socket, 640);
+        $data .= fread($socket, 530);
         if (preg_match("/(\r\n\r\n)/", $data, $matches, PREG_OFFSET_CAPTURE))
         {
           $response_header = substr($data, 0, $matches[1][1] + 1);
