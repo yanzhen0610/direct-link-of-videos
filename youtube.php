@@ -7,33 +7,32 @@ $title = "";
 $title_encoded = "";
 $result = array();
 $error = false;
-$error_msg = "";
 $video_info = array();
 
 // get input
-if ( isset($_REQUEST['url']) && $_REQUEST['url'] != "" )
+if (isset($_REQUEST['url']) && $_REQUEST['url'] != '')
 {
   $url = $_REQUEST['url'];
 
   // desktop site
-  if ( preg_match("/(https?\:\/\/)?(\w+\.)?youtube\.com\/watch\?(.*&)?v=([A-Za-z0-9_-]+)/", $url, $r) )
+  if (preg_match("/(https?\:\/\/)?(\w+\.)?youtube\.com\/watch\?(.*&)?v=([A-Za-z0-9_-]+)/", $url, $r))
   {
     $id = $r[4];
   }
   // mobile
-  else if ( preg_match("/(https?\:\/\/)?youtu\.be\/([A-Za-z0-9_-]+)/", $url, $r) )
+  else if (preg_match("/(https?\:\/\/)?youtu\.be\/([A-Za-z0-9_-]+)/", $url, $r))
   {
     $id = $r[2];
   }
 }
 // direct enter ID
-else if ( isset($_REQUEST['v']) && $_REQUEST['v'] != "" )
+else if (isset($_REQUEST['v']) && $_REQUEST['v'] != '')
 {
   $id = $_REQUEST['v'];
 }
 
 // get info
-if ($id != "")
+if ($error === false && $id != "")
 {
   // load info from 'https://www.youtube.com/get_video_info'
   $info = false;
@@ -64,26 +63,23 @@ if ($id != "")
     // if YouTube return with status fail
     if ($video_info['status'] == "fail")
     {
-      $error = true;
-      $error_msg = $video_info['reason'];
+      $error = $video_info['reason'];
     }
   }
   // if failed to load info from YouTube
   else
   {
-    $error = true;
-    $error_msg = "Server fault";
+    $error = "Server fault";
   }
 }
 // if entered invalid parameters
 else
 {
-  $error = true;
-  $error_msg = "No URL or video ID";
+  $error = "No URL or video ID";
 }
 
 // if there are no errors
-if (!$error)
+if ($error === false)
 {
   // get the title fo the video
   $title = $video_info['title'];
@@ -95,7 +91,7 @@ if (!$error)
   $fmts = explode(',', $video_info['adaptive_fmts']);
   $adaptive_fmts = parse_yt_fmts($fmts);
 
-  $result['status'] = "ok";
+  $result['status'] = 'ok';
   $result['id'] = $id;
   $result['title'] = $title;
   $result['url_encoded_fmt_stream_map'] = $url_encoded_fmt_stream_map;
@@ -104,8 +100,8 @@ if (!$error)
 else
 {
   // if there are any errors
-  $result['status'] = "fail";
-  $result['error_msg'] = $error_msg;
+  $result['status'] = 'fail';
+  $result['reason'] = $error;
 }
 
 // response the result as JSON
@@ -143,7 +139,8 @@ function parse_yt_fmts($str_arr)
       // add the encoded title to the url
       global $title_encoded;
       $x['dl_url'] = $x['url'] . "&title=$title_encoded";
-      $x['content-length'] = get_url_content_length($x['url']);
+      if (isset($_REQUEST['cl']) && $_REQUEST['cl'] == 1)
+        $x['content-length'] = get_url_content_length($x['url']);
     }
     array_push($fmts, $x);
   }
