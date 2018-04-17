@@ -56,7 +56,7 @@ if (!$error && $id != '')
     curl_setopt($ch, CURLOPT_URL, "https://api.instagram.com/oembed/?url=https://www.instagram.com/p/$id/");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $json = curl_exec($ch);
-    
+
     if ($json)
     {
       if (curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200)
@@ -103,7 +103,10 @@ if (!$error && $id != '')
     if ($page)
     {
       $doc = new DOMDocument();
-      $doc->loadHTML($page);
+      if (!$doc->loadHTML($page))
+      {
+        $error = 'Server fault';
+      }
     }
     else
     {
@@ -111,6 +114,7 @@ if (!$error && $id != '')
     }
   }
 
+  //debug
   if ($debug)
   {
     $debug_info['request_page_end_time'] = microtime(true);
@@ -120,7 +124,7 @@ if (!$error && $id != '')
   }
 }
 
-//
+// if there is no error
 if (!$error && $doc)
 {
   $meta = array();
