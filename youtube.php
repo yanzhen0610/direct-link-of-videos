@@ -2,12 +2,34 @@
 header( 'Access-Control-Allow-Origin: *' );
 header( 'Content-Type: application/json' );
 
+// input var
 $id = "";
+$get_content_length = false;
+
+// debug
+$debug = false;
+$debug_info = array();
+
+// info
 $title = "";
 $title_encoded = "";
+$video_info = array();
+
+// results
 $result = array();
 $error = false;
-$video_info = array();
+
+// check does it require to get content length
+if (isset($_REQUEST['cl']) && $_REQUEST['cl'] == 1)
+{
+  $get_content_length = true;
+}
+
+// is debug mode?
+if (isset($_REQUEST['debug']) && $_REQUEST['debug'] == 1)
+{
+  $debug = true;
+}
 
 // get input
 if (isset($_REQUEST['url']) && $_REQUEST['url'] != '')
@@ -139,8 +161,14 @@ function parse_yt_fmts($str_arr)
       // add the encoded title to the url
       global $title_encoded;
       $x['dl_url'] = $x['url'] . "&title=$title_encoded";
-      if (isset($_REQUEST['cl']) && $_REQUEST['cl'] == 1)
-        $x['content-length'] = get_url_content_length($x['url']);
+      
+      global $get_content_length;
+      if ($get_content_length)
+      {
+        $content_length = get_url_content_length($x['url']);
+        if ($content_length !== false)
+          $x['content-length'] = $content_length;
+      }
     }
     array_push($fmts, $x);
   }
@@ -174,6 +202,7 @@ function sig($sig)
 }
 
 // get the content length of an URL from response header
+// it'll close the connection when it got a entire response header
 function get_url_content_length($url)
 {
   $len = false;
@@ -183,11 +212,15 @@ function get_url_content_length($url)
     $scheme = $matches[2];
     $hostname = $matches[3];
     $query = $matches[6];
+    $protocol = false;
 
     $port = getservbyname($scheme, 'tcp');
-    if ($port === false) return -1;
+    if ($port === false) return false;
     $address = gethostbyname($hostname);
-    if ($address === $hostname) return -1;
+    if ($address === $hostname) return false;
+    if ($scheme == 'https') $protocol = 'tlsv1.2';
+    else if ($scheme == 'http') $protocol = 'tcp';
+    if ($protocol === false) return false;
 
     // request header
     $request_str = "GET $query HTTP/1.1\r\n";
@@ -204,9 +237,6 @@ function get_url_content_length($url)
     $request_str .= "\r\n";
 
     $response_header = "";
-
-    $protocol = 'tcp';
-    if ($scheme == 'https') $protocol = 'tlsv1.2';
 
     // 0.1 sec timeout
     if ($socket = stream_socket_client("$protocol://$hostname:$port", $errno, $errstr, 0.1))

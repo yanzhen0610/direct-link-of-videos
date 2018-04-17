@@ -2,11 +2,26 @@
 
 header('Content-Type: application/json');
 
+// input vars
 $id = "";
 $doc = false;
-$error = false;
+
+// debug
+$debug = false;
+$debug_info = array();
+
+// info
 $data = false;
+
+// results
+$error = false;
 $result = array();
+
+// is debug mode?
+if (isset($_REQUEST['debug']) && $_REQUEST['debug'] == 1)
+{
+  $debug = true;
+}
 
 // deal with input
 if (isset($_REQUEST['url']) && $_REQUEST['url'] != '')
@@ -29,15 +44,19 @@ else
 // fetch info
 if (!$error && $id != '')
 {
+  // debug
+  if ($debug) $debug_info['request_author_info_start_time'] = microtime(true);
+
   // the author info
   for ($i = 0; $i < 2; ++$i)
   {
     if ($i !== 0) sleep(1);
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "https://api.instagram.com/oembed/?url=https://www.instagram.com/p/$id/");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $json = curl_exec($ch);
-    // $json = file_get_contents("https://api.instagram.com/oembed?url=http://www.instagram.com/p/a$id/");
+    
     if ($json)
     {
       if (curl_getinfo($ch, CURLINFO_HTTP_CODE) === 200)
@@ -56,6 +75,17 @@ if (!$error && $id != '')
       $error = 'Server fault';
     }
     curl_close($ch);
+  }
+
+  //debug
+  if ($debug)
+  {
+    $debug_info['request_author_info_end_time'] = microtime(true);
+    $debug_info['request_author_info_duration'] =
+      $debug_info['request_author_info_end_time'] -
+      $debug_info['request_author_info_start_time'];
+
+    $debug_info['request_page_start_time'] = microtime(true);
   }
 
   // get image or video link from the post page
@@ -79,6 +109,14 @@ if (!$error && $id != '')
     {
       $error = 'Server fault';
     }
+  }
+
+  if ($debug)
+  {
+    $debug_info['request_page_end_time'] = microtime(true);
+    $debug_info['request_page_duration'] =
+      $debug_info['request_page_end_time'] -
+      $debug_info['request_page_start_time'];
   }
 }
 
@@ -142,6 +180,8 @@ if ($error)
   $result['status'] = 'fail';
   $result['reason'] = $error;
 }
+
+if ($debug) $result['debug_info'] = $debug_info;
 
 // response the result as JSON
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
