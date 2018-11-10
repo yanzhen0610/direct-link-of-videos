@@ -5,22 +5,12 @@ header( 'Content-Type: application/json' );
 // input var
 $id = "";
 
-// debug
-$debug = false;
-$debug_info = array();
-
 // info
 $video_info = false;
 
 // results
 $result = array();
 $error = false;
-
-// is debug mode?
-if (isset($_REQUEST['debug']))
-{
-  $debug = true;
-}
 
 // get input
 if (isset($_REQUEST['url']) && $_REQUEST['url'] != '')
