@@ -1,5 +1,7 @@
 # Direct link of videos
 
+> *Note:* I didn't make a web user interface. :P It's just an API.
+
 ## support websites
 
 youtube
