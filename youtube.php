@@ -4,29 +4,20 @@ header( 'Content-Type: application/json' );
 
 // input var
 $id = "";
-$get_content_length = false;
 
 // debug
 $debug = false;
 $debug_info = array();
 
 // info
-$title = "";
-$title_encoded = "";
-$video_info = array();
+$video_info = false;
 
 // results
 $result = array();
 $error = false;
 
-// check does it require to get content length
-if (isset($_REQUEST['cl']) && $_REQUEST['cl'] == 1)
-{
-  $get_content_length = true;
-}
-
 // is debug mode?
-if (isset($_REQUEST['debug']) && $_REQUEST['debug'] == 1)
+if (isset($_REQUEST['debug']))
 {
   $debug = true;
 }
@@ -56,13 +47,12 @@ else if (isset($_REQUEST['v']) && $_REQUEST['v'] != '')
 // get info
 if (!$error && $id != "")
 {
-  // load info from 'https://www.youtube.com/get_video_info'
   $info = false;
 
   // re-try on failure
   for ($i = 0; $i < 2; ++$i)
   {
-    $info = file_get_contents("http://www.youtube.com/get_video_info?eurl=http%3A%2F%2Fexample.com%2F&video_id=$id&gl=US&hl=en");
+    $info = file_get_contents("https://www.youtube.com/watch?v=$id");
     if ($info) break;
     sleep(1);
   }
@@ -70,28 +60,20 @@ if (!$error && $id != "")
   // if load info successfully
   if ($info)
   {
-    // each field of data was separated by character '&'
-    $rows = explode("&", $info);
-
-    foreach($rows as $row)
+    if (preg_match('/<\s*script\s*>.*ytplayer\.config = (\{.*?\});.*<\s*\/\s*script\s*>/', $info, $matches))
     {
-      // the key and value are separated by character '='
-      $col = explode("=", $row);
-      $key = $col[0]; $value = $col[1];
-      // decoded the value
-      $video_info[$key] = urldecode($value);
+      $video_info = json_decode($matches[1], true);
+      // var_dump($video_info);
     }
-
-    // if YouTube return with status fail
-    if ($video_info['status'] == "fail")
+    else
     {
-      $error = $video_info['reason'];
+      $error = "Can't get video info where video ID=$id";
     }
   }
   // if failed to load info from YouTube
   else
   {
-    $error = "Server fault";
+    $error = "Server fault: cannot fetch content from https://www.youtube.com/watch?v=$id";
   }
 }
 // if entered invalid parameters
@@ -103,21 +85,22 @@ else
 // if there are no errors
 if (!$error)
 {
-  // get the title fo the video
-  $title = $video_info['title'];
-  $title_encoded = urlencode($title);
-
-  $fmts = explode(',', $video_info['url_encoded_fmt_stream_map']);
-  $url_encoded_fmt_stream_map = parse_yt_fmts($fmts);
-
-  $fmts = explode(',', $video_info['adaptive_fmts']);
-  $adaptive_fmts = parse_yt_fmts($fmts);
+  $player_response = json_decode(
+    $video_info['args']['player_response'], true);
+  $video_details = $player_response['videoDetails'];
+  $streaming_data = $player_response['streamingData'];
 
   $result['status'] = 'ok';
-  $result['id'] = $id;
-  $result['title'] = $title;
-  $result['url_encoded_fmt_stream_map'] = $url_encoded_fmt_stream_map;
-  $result['adaptive_fmts'] = $adaptive_fmts;
+  $result['video_id'] = $id;
+  $result['channel_id'] = $video_details['channelId'];
+  $result['author'] = $video_details['author'];
+  $result['title'] = $video_info['args']['title'];
+  $result['view_count'] = $video_details['viewCount'];
+  $result['keywords'] = $video_details['keywords'];
+  $result['length_seconds'] = $video_details['lengthSeconds'];
+  $result['thumbnails'] = $video_details['thumbnail']['thumbnails'];
+  $result['streaming_data']['formats'] = $streaming_data['formats'];
+  $result['streaming_data']['adaptive_formats'] = $streaming_data['adaptiveFormats'];
 }
 else
 {
@@ -127,142 +110,7 @@ else
 }
 
 // response the result as JSON
-echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-
-
-///////////////
-// functions //
-///////////////
-
-// parse to array
-function parse_yt_fmts($str_arr)
-{
-  $fmts = array();
-  foreach($str_arr as $str)
-  {
-    $rows = explode('&', $str);
-    $x = array();
-    foreach($rows as $row)
-    {
-      $col = explode('=', $row);
-      $key = $col[0]; $value = urldecode($col[1]);
-      $x[$key] = $value;
-    }
-    if (array_key_exists('url', $x))
-    {
-      // add the signature
-      if (array_key_exists('sig', $x))
-        $x['url'] .= "&signature=$x[sig]";
-      else if (array_key_exists('signature', $x))
-        $x['url'] .= "&signature=$x[signature]";
-      else if (array_key_exists('s', $x))
-        $x['url'] .= "&signature=" . sig($x['s']);
-
-      // add the encoded title to the url
-      global $title_encoded;
-      $x['dl_url'] = $x['url'] . "&title=$title_encoded";
-      
-      global $get_content_length;
-      if ($get_content_length)
-      {
-        $content_length = get_url_content_length($x['url']);
-        if ($content_length !== false)
-          $x['content-length'] = $content_length;
-      }
-    }
-    array_push($fmts, $x);
-  }
-  return $fmts;
-}
-
-// swap function
-function str_swap(&$str, $i, $j)
-{
-  $tmp = $str[$i];
-  $str[$i] = $str[$j];
-  $str[$j] = $tmp;
-}
-
-// get the real signature
-function sig($sig)
-{
-  $exchanges = array(
-    array(1, 71),
-    array(1, 16),
-    array(1, 4)
-  );
-  $slice = array(3, 2);
-  foreach($exchanges as $ex)
-  {
-    str_swap($sig, $ex[0], $ex[1]);
-  }
-  $sig = substr($sig, $slice[0], strlen($sig) - $slice[0] - $slice[1]);
-  $sig = strrev($sig);
-  return $sig;
-}
-
-// get the content length of an URL from response header
-// it'll close the connection when it got a entire response header
-function get_url_content_length($url)
-{
-  $len = false;
-
-  if (preg_match("/^((https?)\:\/\/)?(([\w-]*\.)+([\w-]+\.?))(\/.*)?$/", $url, $matches))
-  {
-    $scheme = $matches[2];
-    $hostname = $matches[3];
-    $query = $matches[6];
-    $protocol = false;
-
-    $port = getservbyname($scheme, 'tcp');
-    if ($port === false) return false;
-    $address = gethostbyname($hostname);
-    if ($address === $hostname) return false;
-    if ($scheme == 'https') $protocol = 'tlsv1.2';
-    else if ($scheme == 'http') $protocol = 'tcp';
-    if ($protocol === false) return false;
-
-    // request header
-    $request_str = "GET $query HTTP/1.1\r\n";
-    $request_str .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
-    $request_str .= "Accept-Encoding: gzip, deflate, br\r\n";
-    $request_str .= "Accept-Language: en-US,en;q=0.5\r\n";
-    $request_str .= "Cache-Control: no-cache\r\n";
-    $request_str .= "Connection: keep-alive\r\n";
-    $request_str .= "DNT: 1\r\n";
-    $request_str .= "Host: $hostname\r\n";
-    $request_str .= "Pragma: no-cache\r\n";
-    $request_str .= "Upgrade-Insecure-Requests: 1\r\n";
-    $request_str .= "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:59.0) Gecko/20100101 Firefox/59.0\r\n";
-    $request_str .= "\r\n";
-
-    $response_header = "";
-
-    // 0.1 sec timeout
-    if ($socket = stream_socket_client("$protocol://$hostname:$port", $errno, $errstr, 0.1))
-    {
-      fwrite($socket, $request_str);
-      $data = "";
-      while (!feof($socket))
-      {
-        $data .= fread($socket, 530);
-        if (preg_match("/(\r\n\r\n)/", $data, $matches, PREG_OFFSET_CAPTURE))
-        {
-          $response_header = substr($data, 0, $matches[1][1] + 1);
-          break;
-        }
-      }
-      fclose($socket);
-    }
-
-    if (preg_match("/[cC]ontent-[lL]ength\:\s*(\d+)/", $response_header, $matches))
-    {
-      if (is_numeric($matches[1]))
-      {
-        $len = (int) $matches[1];
-      }
-    }
-  }
-
-  return $len;
-}
+$output = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+$content_length = strlen($output);
+header( "Content-Length: $content_length" );
+echo $output;
