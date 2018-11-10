@@ -91,16 +91,16 @@ if (!$error)
   $streaming_data = $player_response['streamingData'];
 
   $result['status'] = 'ok';
-  $result['video_id'] = $id;
-  $result['channel_id'] = $video_details['channelId'];
+  $result['videoId'] = $id;
+  $result['channelId'] = $video_details['channelId'];
   $result['author'] = $video_details['author'];
   $result['title'] = $video_info['args']['title'];
-  $result['view_count'] = $video_details['viewCount'];
+  $result['viewCount'] = $video_details['viewCount'];
   $result['keywords'] = $video_details['keywords'];
-  $result['length_seconds'] = $video_details['lengthSeconds'];
-  $result['thumbnails'] = $video_details['thumbnail']['thumbnails'];
-  $result['streaming_data']['formats'] = $streaming_data['formats'];
-  $result['streaming_data']['adaptive_formats'] = $streaming_data['adaptiveFormats'];
+  $result['lengthSeconds'] = $video_details['lengthSeconds'];
+  $result['thumbnail'] = $video_details['thumbnail'];
+  $result['streamingData'] = $streaming_data;
+  unset($result['streamingData']['probeUrl']);
 }
 else
 {
