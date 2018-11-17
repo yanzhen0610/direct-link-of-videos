@@ -53,7 +53,6 @@ if (!$error && $id != "")
     if (preg_match('/<\s*script\s*>.*ytplayer\.config = (\{.*?\});.*<\s*\/\s*script\s*>/', $info, $matches))
     {
       $video_info = json_decode($matches[1], true);
-      // var_dump($video_info);
     }
     else
     {
@@ -76,7 +75,7 @@ else
 if (!$error)
 {
   $player_response = json_decode(
-    $video_info['args']['player_response'], true);
+  $video_info['args']['player_response'], true);
   $video_details = $player_response['videoDetails'];
   $streaming_data = $player_response['streamingData'];
 
